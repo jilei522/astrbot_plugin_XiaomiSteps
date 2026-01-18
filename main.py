@@ -11,7 +11,7 @@ class XiaomiStepsPlugin:
         """
         # 默认配置，防止注入失败
         self.config = config if config else {
-            "ckey": "AB3X3HLKNXZI5FNPRG9G",
+            "ckey": "AB3X3HLKNXZI5FNPRGG",
             "api_url": "https://tmini.net/api/xiaomi"
         }
 
@@ -35,7 +35,7 @@ class XiaomiStepsPlugin:
                 
                 try:
                     # 从配置中获取 ckey 和 api_url
-                    ckey = self.config.get("ckey", "AB3X3HLKNXZI5FNPRG9G")
+                    ckey = self.config.get("ckey", "AB3X3HLKNXZI5FNPRGG")
                     api_url = self.config.get("api_url", "https://tmini.net/api/xiaomi")
                     
                     # 构造请求参数
