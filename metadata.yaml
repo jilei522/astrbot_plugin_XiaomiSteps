@@ -1,0 +1,7 @@
+name: xiaomi_steps
+display_name: 小米运动步数修改
+description: 通过指定接口修改小米运动步数，支持账号#密码#步数格式。
+author: Manus
+version: 1.1.0
+repo: https://github.com/Soulter/helloworld # 示例仓库，用户可自行修改
+homepage: https://github.com/Soulter/helloworld
