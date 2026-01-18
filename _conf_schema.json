@@ -1,0 +1,15 @@
+{
+  "ckey": {
+    "description": "后台 API Key",
+    "type": "string",
+    "hint": "请输入您的后台 API Key",
+    "default": "AB3X3HLKNXZI5FNPRG9G",
+    "obvious_hint": true
+  },
+  "api_url": {
+    "description": "接口地址",
+    "type": "string",
+    "hint": "接口请求的 URL 地址",
+    "default": "https://tmini.net/api/xiaomi"
+  }
+}
