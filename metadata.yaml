@@ -1,7 +1,7 @@
-name: xiaomi_steps
+name: astrbot_plugin_XiaomiSteps
 display_name: 小米运动步数修改
-description: 通过指定接口修改小米运动步数，支持账号#密码#步数格式。
-author: Manus
-version: 1.2.1
+description: 支持通过用户简单的格式指令运动步数进行修改。
+author: mixia
+version: 1.2.2
 repo: https://github.com/jilei522/astrbot_plugin_XiaomiSteps
 homepage: https://github.com/jilei522/astrbot_plugin_XiaomiSteps
