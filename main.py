@@ -5,7 +5,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, register
 from astrbot.api.all import Context
 
-@register("xiaomi_steps", "Manus", "通过指定接口修改小米运动步数，支持账号#密码#步数格式。", "1.2.1", "https://github.com/jilei522/astrbot_plugin_XiaomiSteps")
+@register("astrbot_plugin_XiaomiSteps", "mixia", "支持通过用户简单的格式指令运动步数进行修改。", "1.2.2", "https://github.com/jilei522/astrbot_plugin_XiaomiSteps")
 class XiaomiStepsPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
@@ -27,8 +27,6 @@ class XiaomiStepsPlugin(Star):
         # 2. 正则解析：确保格式严格匹配并提取字段
         match = self.pattern.match(raw_msg)
         if not match:
-            # 如果包含 # 但格式不对，可以给予友好提示（可选，避免干扰普通聊天）
-            # yield event.plain_result("格式似乎不对哦，请使用：账号#密码#步数")
             return
 
         user, password, steps_str = match.groups()
@@ -97,9 +95,9 @@ class XiaomiStepsPlugin(Star):
 
     def info(self):
         return {
-            "name": "XiaomiSteps",
-            "desc": "通过指定接口修改小米运动步数，支持账号#密码#步数格式。",
+            "name": "astrbot_plugin_XiaomiSteps",
+            "desc": "支持通过用户简单的格式指令运动步数进行修改。",
             "help": "输入格式：账号#密码#步数\n例如：example@mail.com#password123#20000\n安全提示：请勿在公共群聊频繁发送密码。",
-            "version": "v1.2.1",
-            "author": "Manus"
+            "version": "1.2.2",
+            "author": "mixia"
         }
