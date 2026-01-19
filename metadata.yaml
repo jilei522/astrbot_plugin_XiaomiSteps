@@ -1,7 +1,7 @@
 name: astrbot_plugin_mixiaSteps
-display_name: 小米运动步数修改
-description: 支持通过用户简单的格式指令运动步数进行修改。
+display_name: 弥夏运动步数修改
+description: 支持通过用户简单的格式指令进行修改运动步数华米数据步数。
 author: mixia
 version: 1.4.0
-repo: https://github.com/jilei522/astrbot_plugin_XiaomiSteps
+repo: https://github.com/jilei522/astrbot_plugin_mixiaSteps
 homepage: https://github.com/jilei522/
