@@ -1,11 +1,13 @@
-import requests
+import httpx
 import re
-import asyncio
+import logging
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Star, register
 from astrbot.api.all import Context
 
-@register("astrbot_plugin_XiaomiSteps", "mixia", "支持通过用户简单的格式指令运动步数进行修改。", "1.2.2", "https://github.com/jilei522/astrbot_plugin_XiaomiSteps")
+logger = logging.getLogger("astrbot")
+
+@register("astrbot_plugin_XiaomiSteps", "mixia", "支持通过用户简单的格式指令运动步数进行修改。", "1.3.0", "https://github.com/jilei522/astrbot_plugin_XiaomiSteps")
 class XiaomiStepsPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
@@ -24,9 +26,21 @@ class XiaomiStepsPlugin(Star):
         if raw_msg.count('#') != 2:
             return
 
-        # 2. 正则解析：确保格式严格匹配并提取字段
+        # 2. 正则解析
         match = self.pattern.match(raw_msg)
         if not match:
+            return
+
+        # 3. 安全性检查：强制私聊
+        # event.get_platform_name() 可以获取平台，event.is_group() 检查是否为群聊
+        if event.is_group():
+            # 尝试撤回消息（如果平台支持）
+            try:
+                await self.context.get_platform(event.platform).delete_msg(event.message_obj.message_id)
+            except Exception as e:
+                logger.warning(f"撤回消息失败: {e}")
+            
+            yield event.plain_result("⚠️ 为了您的账号安全，【修改步数】指令仅限【私聊】使用！\n密码已在群聊暴露，建议您尽快修改密码。")
             return
 
         user, password, steps_str = match.groups()
@@ -34,12 +48,12 @@ class XiaomiStepsPlugin(Star):
         password = password.strip()
         steps = int(steps_str)
 
-        # 3. 业务逻辑校验：步数范围检查
+        # 4. 业务逻辑校验
         if steps < 0 or steps > 100000:
             yield event.plain_result("❌ 步数设置不合理（建议 0-100,000 之间）。")
             return
 
-        # 4. 获取配置
+        # 5. 获取配置
         ckey = self.config.get("ckey", "").strip()
         if not ckey:
             yield event.plain_result("⚠️ 插件未配置 API Key (ckey)，请联系管理员在后台设置。")
@@ -47,10 +61,8 @@ class XiaomiStepsPlugin(Star):
         
         api_url = self.config.get("api_url", "https://tmini.net/api/xiaomi").strip()
 
-        # 5. 安全的异步请求处理
+        # 6. 使用 httpx 进行异步请求
         try:
-            # 使用 run_in_executor 防止 requests 阻塞异步主线程
-            loop = asyncio.get_event_loop()
             params = {
                 "ckey": ckey,
                 "user": user,
@@ -58,37 +70,31 @@ class XiaomiStepsPlugin(Star):
                 "steps": steps
             }
             
-            # 封装请求逻辑
-            def make_request():
-                return requests.get(api_url, params=params, timeout=15)
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(api_url, params=params)
+                
+                if response.status_code != 200:
+                    yield event.plain_result(f"❌ 接口请求失败 (HTTP {response.status_code})，请稍后再试。")
+                    return
 
-            response = await loop.run_in_executor(None, make_request)
+                data = response.json()
             
-            # 检查 HTTP 状态码
-            if response.status_code != 200:
-                yield event.plain_result(f"❌ 接口请求失败 (HTTP {response.status_code})，请稍后再试。")
-                return
-
-            data = response.json()
-            
-            # 6. 业务结果反馈
+            # 7. 业务结果反馈
             code = data.get("code")
             msg = data.get("msg", "未知返回信息")
             
             if code == 200:
-                # 成功：提取返回的步数（如果有）
                 res_data = data.get("data", {})
                 current_steps = res_data.get("steps", steps)
                 yield event.plain_result(f"✅ 修改成功！\n账号：{user}\n当前步数：{current_steps}\n提示：{msg}")
             else:
-                # 失败：反馈接口给出的具体原因
                 yield event.plain_result(f"❌ 修改失败\n原因：{msg}")
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             yield event.plain_result("⚠️ 请求超时，接口服务器响应过慢，请稍后重试。")
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             yield event.plain_result(f"⚠️ 网络请求异常：{str(e)}")
-        except ValueError:
+        except (ValueError, KeyError):
             yield event.plain_result("⚠️ 接口返回数据格式错误，解析失败。")
         except Exception as e:
             yield event.plain_result(f"⚠️ 发生未知错误：{str(e)}")
@@ -97,7 +103,7 @@ class XiaomiStepsPlugin(Star):
         return {
             "name": "astrbot_plugin_XiaomiSteps",
             "desc": "支持通过用户简单的格式指令运动步数进行修改。",
-            "help": "输入格式：账号#密码#步数\n例如：example@mail.com#password123#20000\n安全提示：请勿在公共群聊频繁发送密码。",
-            "version": "1.2.2",
+            "help": "【安全提示】请务必在【私聊】中使用！\n输入格式：账号#密码#步数\n例如：example@mail.com#password123#20000",
+            "version": "1.3.0",
             "author": "mixia"
         }
