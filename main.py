@@ -1,80 +1,105 @@
 import requests
-from cores.qqbot.global_object import AstrMessageEvent
+import re
+import asyncio
+from astrbot.api.event import filter, AstrMessageEvent
+from astrbot.api.star import Star, register
+from astrbot.api.all import Context
 
-class XiaomiStepsPlugin:
-    """
-    小米运动/运动步数修改插件 (支持配置管理)
-    """
-    def __init__(self, context=None, config=None) -> None:
-        """
-        AstrBot 会在实例化时自动注入 config
-        """
-        # 默认配置，防止注入失败
-        self.config = config if config else {
-            "ckey": "AB3X3HLKNXZI5FNPRGG",
-            "api_url": "https://tmini.net/api/xiaomi"
-        }
+@register("xiaomi_steps", "Manus", "通过指定接口修改小米运动步数，支持账号#密码#步数格式。", "1.2.1", "https://github.com/jilei522/astrbot_plugin_XiaomiSteps")
+class XiaomiStepsPlugin(Star):
+    def __init__(self, context: Context, config: dict = None):
+        super().__init__(context)
+        self.config = config if config else {}
+        # 预编译正则，提高匹配效率
+        self.pattern = re.compile(r'^(.+?)#(.+?)#(\d+)$')
 
-    def run(self, ame: AstrMessageEvent):
+    @filter.on_message()
+    async def handle_message(self, event: AstrMessageEvent):
         """
-        处理消息
+        监听消息，安全解析 账号#密码#步数 格式
         """
-        msg = ame.message_str.strip()
+        raw_msg = event.message_str.strip()
         
-        # 检查是否符合 账号#密码#步数 格式
-        if "#" in msg:
-            parts = msg.split("#")
-            if len(parts) == 3:
-                user = parts[0].strip()
-                password = parts[1].strip()
-                steps = parts[2].strip()
-                
-                # 简单校验步数是否为数字
-                if not steps.isdigit():
-                    return True, tuple([True, "步数必须是数字哦！格式：账号#密码#步数", "xiaomi_steps"])
-                
-                try:
-                    # 从配置中获取 ckey 和 api_url
-                    ckey = self.config.get("ckey", "AB3X3HLKNXZI5FNPRGG")
-                    api_url = self.config.get("api_url", "https://tmini.net/api/xiaomi")
-                    
-                    # 构造请求参数
-                    params = {
-                        "ckey": ckey,
-                        "user": user,
-                        "pass": password,
-                        "steps": steps
-                    }
-                    
-                    # 发送请求
-                    response = requests.get(api_url, params=params, timeout=10)
-                    data = response.json()
-                    
-                    if data.get("code") == 200:
-                        # 成功返回
-                        result_msg = f"✅ 修改成功！\n账号：{data['data']['user']}\n当前步数：{data['data']['steps']}\n提示：{data.get('msg', '请求成功')}"
-                        return True, tuple([True, result_msg, "xiaomi_steps"])
-                    else:
-                        # 接口返回错误
-                        error_msg = f"❌ 修改失败\n原因：{data.get('msg', '未知错误')}"
-                        return True, tuple([True, error_msg, "xiaomi_steps"])
-                        
-                except Exception as e:
-                    # 网络或解析异常
-                    return True, tuple([True, f"⚠️ 请求接口出错：{str(e)}", "xiaomi_steps"])
+        # 1. 快速过滤：必须包含两个 #
+        if raw_msg.count('#') != 2:
+            return
+
+        # 2. 正则解析：确保格式严格匹配并提取字段
+        match = self.pattern.match(raw_msg)
+        if not match:
+            # 如果包含 # 但格式不对，可以给予友好提示（可选，避免干扰普通聊天）
+            # yield event.plain_result("格式似乎不对哦，请使用：账号#密码#步数")
+            return
+
+        user, password, steps_str = match.groups()
+        user = user.strip()
+        password = password.strip()
+        steps = int(steps_str)
+
+        # 3. 业务逻辑校验：步数范围检查
+        if steps < 0 or steps > 100000:
+            yield event.plain_result("❌ 步数设置不合理（建议 0-100,000 之间）。")
+            return
+
+        # 4. 获取配置
+        ckey = self.config.get("ckey", "").strip()
+        if not ckey:
+            yield event.plain_result("⚠️ 插件未配置 API Key (ckey)，请联系管理员在后台设置。")
+            return
         
-        # 如果不符合格式，不响应消息
-        return False, None
+        api_url = self.config.get("api_url", "https://tmini.net/api/xiaomi").strip()
+
+        # 5. 安全的异步请求处理
+        try:
+            # 使用 run_in_executor 防止 requests 阻塞异步主线程
+            loop = asyncio.get_event_loop()
+            params = {
+                "ckey": ckey,
+                "user": user,
+                "pass": password,
+                "steps": steps
+            }
+            
+            # 封装请求逻辑
+            def make_request():
+                return requests.get(api_url, params=params, timeout=15)
+
+            response = await loop.run_in_executor(None, make_request)
+            
+            # 检查 HTTP 状态码
+            if response.status_code != 200:
+                yield event.plain_result(f"❌ 接口请求失败 (HTTP {response.status_code})，请稍后再试。")
+                return
+
+            data = response.json()
+            
+            # 6. 业务结果反馈
+            code = data.get("code")
+            msg = data.get("msg", "未知返回信息")
+            
+            if code == 200:
+                # 成功：提取返回的步数（如果有）
+                res_data = data.get("data", {})
+                current_steps = res_data.get("steps", steps)
+                yield event.plain_result(f"✅ 修改成功！\n账号：{user}\n当前步数：{current_steps}\n提示：{msg}")
+            else:
+                # 失败：反馈接口给出的具体原因
+                yield event.plain_result(f"❌ 修改失败\n原因：{msg}")
+
+        except requests.exceptions.Timeout:
+            yield event.plain_result("⚠️ 请求超时，接口服务器响应过慢，请稍后重试。")
+        except requests.exceptions.RequestException as e:
+            yield event.plain_result(f"⚠️ 网络请求异常：{str(e)}")
+        except ValueError:
+            yield event.plain_result("⚠️ 接口返回数据格式错误，解析失败。")
+        except Exception as e:
+            yield event.plain_result(f"⚠️ 发生未知错误：{str(e)}")
 
     def info(self):
-        """
-        插件元信息
-        """
         return {
             "name": "XiaomiSteps",
-            "desc": "修改运动步数插件 (支持 WebUI 配置)",
-            "help": "输入格式：账号#密码#步数\n例如：example@mail.com#password123#20000\n您可以在管理面板修改 API Key。",
-            "version": "v1.1",
-            "author": "Manus",
-            "repo": ""
+            "desc": "通过指定接口修改小米运动步数，支持账号#密码#步数格式。",
+            "help": "输入格式：账号#密码#步数\n例如：example@mail.com#password123#20000\n安全提示：请勿在公共群聊频繁发送密码。",
+            "version": "v1.2.1",
+            "author": "Manus"
         }
