@@ -3,7 +3,7 @@
     "description": "后台 API Key",
     "type": "string",
     "hint": "请输入您的后台 API Key",
-    "default": "AB3X3HLKNXZI5FNPRG9G",
+    "default": "AB3X3HLKNXZI5FNPRGG",
     "obvious_hint": true
   },
   "api_url": {
