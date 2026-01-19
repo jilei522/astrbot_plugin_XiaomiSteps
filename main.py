@@ -7,7 +7,7 @@ from astrbot.api.all import Context
 
 logger = logging.getLogger("astrbot")
 
-@register("astrbot_plugin_mixiaSteps", "mixia", "支持通过用户简单的格式指令运动步数进行修改。", "1.4.0", "https://github.com/jilei522/")
+@register("astrbot_plugin_mixiaSteps", "mixia", "支持通过用户简单的格式指令进行修改运动步数华米数据步数。", "1.4.0", "https://github.com/jilei522/astrbot_plugin_mixiaSteps")
 class XiaomiStepsPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
