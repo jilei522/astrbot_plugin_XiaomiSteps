@@ -20,7 +20,7 @@
 ## 配置说明
 
 插件安装后，您可以通过以下方式修改 API Key：
-1. **Web 管理面板**: 在插件管理页面找到 "mixiaSteps"，点击配置即可看到 `ckey` 输入框。
+1. **Web 管理面板**: 在插件管理页面找到 "astrbot_plugin_mixiaSteps"，点击配置即可看到 `ckey` 输入框。
 
 ## 安装说明
 
